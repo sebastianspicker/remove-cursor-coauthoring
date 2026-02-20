@@ -1,0 +1,10 @@
+{
+  "defaults": {
+    "dryRun": false,
+    "noPush": false,
+    "forcePush": true
+  },
+  "repos": [
+    { "url": "https://github.com/<username>/<reponame>", "path": "/path/to/<reponame>" }
+  ]
+}

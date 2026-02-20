@@ -1,0 +1,7 @@
+.DS_Store
+*.swp
+*.swo
+*~
+
+# User config (may contain local paths); the .example.json is tracked
+remove-cursor-coauthor.json
