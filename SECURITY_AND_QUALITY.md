@@ -1,6 +1,6 @@
 # Security and quality
 
-Short overview for `remove-cursor-coauthor.sh`. Detailed inspection history: [docs/CODE_INSPECTION.md](docs/CODE_INSPECTION.md).
+Short overview for `remove-cursor-coauthor.sh`.
 
 ## Assumptions
 
