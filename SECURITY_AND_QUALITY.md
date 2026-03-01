@@ -1,6 +1,6 @@
 # Security and quality
 
-Short overview for `remove-cursor-coauthor.sh`.
+Short overview for `remove-cursor-coauthor.sh` with practical security and operational guidance for public use.
 
 ## Assumptions
 
@@ -14,6 +14,7 @@ Short overview for `remove-cursor-coauthor.sh`.
 - **URL handling:** Remote URL is built only from regex-captured GitHub username/repo segments. No arbitrary string is pasted into the URL.
 - **Temp files:** Config is read via a temp file; the script uses a trap to remove it on exit and removes it explicitly on failure so no config data is left on disk.
 - **History rewrite:** The script rewrites Git history and can force-push. Use `--dry-run` to preview commands and `--no-push` to only rewrite locally.
+- **Remotes:** After filtering, the script restores remote URLs from a backup. Custom refspecs or `pushurl` are not restored; re-add them manually if you use them.
 
 ## How to run safely
 
