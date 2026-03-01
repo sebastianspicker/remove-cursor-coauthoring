@@ -2,9 +2,13 @@
   "defaults": {
     "dryRun": false,
     "noPush": false,
-    "forcePush": true
+    "forcePush": true,
+    "backupRemote": "backup"
   },
   "repos": [
-    { "url": "https://github.com/<username>/<reponame>", "path": "/path/to/<reponame>" }
+    {
+      "url": "https://github.com/<username>/<reponame>",
+      "path": "/path/to/<reponame>"
+    }
   ]
 }

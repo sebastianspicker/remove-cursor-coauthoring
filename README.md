@@ -1,8 +1,8 @@
 # Remove Cursor Co-Author from Git History
 
-In the latest update, Cursor has taken to introducing itself in every commit message. Don't get me wrong: I'm all for full transparency when it comes to AI-assisted coding. I'm just not satisfied with Cursor doing it on its own, without permission. So I use Cursor—ironically—to get rid of its own messages.
+`remove-cursor-coauthor.sh` removes `Co-authored-by: Cursor <cursoragent@cursor.com>` trailers from commit messages using `git-filter-repo`.
 
-This script strips `Co-authored-by: Cursor <cursoragent@cursor.com>` from all commit messages in a repo using `git-filter-repo`, and can force-push to the given GitHub remote (or only rewrite history locally). It supports a JSON config for defaults, and can process multiple repos in one run.
+It supports single-repo and batch runs, JSON config defaults, dry-run and validate-only modes, and optional push backup remotes.
 
 ## Requirements
 
@@ -17,6 +17,8 @@ Install `git-filter-repo` (macOS):
 brew install git-filter-repo
 ```
 
+Tip: use `--validate-only` first to verify inputs without rewriting or pushing.
+
 ## Usage
 
 ```text
@@ -25,42 +27,41 @@ remove-cursor-coauthor.sh [OPTIONS] --repos-file <file>
 remove-cursor-coauthor.sh [OPTIONS] --config <config.json>
 ```
 
-
-| Option                | Description                                             |
-| --------------------- | ------------------------------------------------------- |
-| `--dry-run`           | Print commands, do not run them                         |
-| `--no-push`           | Rewrite history locally only; do not add origin or push |
-| `--force-push`        | When pushing, use `--force` (default)                   |
-| `--no-force-push`     | When pushing, do not use `--force`                      |
-| `--validate-only`     | Run all checks but do not rewrite or push               |
-| `--quiet`, `-q`       | Minimal output: one line per repo (pass/fail)           |
-| `--verbose`, `-v`     | Show every git command (default)                        |
-| `--config <file>`     | Load defaults and optionally repos from JSON            |
-| `--repos-file <file>` | Process repos from file (see below)                     |
-| `--version`           | Print version and exit                                  |
-| `--help`              | Show help                                               |
-
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Print commands, do not run them |
+| `--no-push` | Rewrite history locally only; do not push |
+| `--force-push` | When pushing, use `--force` (default) |
+| `--no-force-push` | When pushing, do not use `--force` |
+| `--validate-only` | Run all checks but do not rewrite or push |
+| `--quiet`, `-q` | Minimal output: one line per repo (pass/fail) |
+| `--verbose`, `-v` | Show every git command (default) |
+| `--config <file>` | Load defaults and optionally repos from JSON |
+| `--repos-file <file>` | Process repos from file (see below) |
+| `--backup-remote <name>` | Before rewriting, push current branch to this remote (skipped if `--dry-run` or `--no-push`) |
+| `--version` | Print version and exit |
+| `--help` | Show help |
 
 Repo input:
 
-- **Positional:** Pairs of `<github_repo_url>` and `<absolute_local_repo_path>`. You can pass multiple pairs in one call.
-- `**--repos-file`:** File with one `url path` per line (path = rest of line), or a JSON array `[ {"url": "...", "path": "..."}, ... ]`.
-- `**--config`:** JSON file with a `repos` array (and optional `defaults`). See Config JSON below.
+- **Positional:** Pairs of `<github_repo_url>` and `<absolute_local_repo_path>`.
+- **`--repos-file`:** File with one `url path` per line (URL is first token, rest of line is path), or JSON array `[ {"url": "...", "path": "..."}, ... ]`.
+- **`--config`:** JSON file with optional `defaults` and optional `repos` array.
 
-URL format: `https://github.com/<user>/<repo>` or `git@github.com:<user>/<repo>` (with or without `.git`).
+URL formats accepted: `https://github.com/<user>/<repo>`, `git@github.com:<user>/<repo>`, `ssh://git@github.com/<user>/<repo>` (with or without `.git`).
 
 ## Config JSON
 
-Use `--config <file>` to set defaults and optionally list repos. CLI options override config defaults.
-
-Example config: [remove-cursor-coauthor.example.json](remove-cursor-coauthor.example.json). Minimal copy:
+Example config: [remove-cursor-coauthor.example.json](remove-cursor-coauthor.example.json)
+Schema: [remove-cursor-coauthor.schema.json](remove-cursor-coauthor.schema.json)
 
 ```json
 {
   "defaults": {
     "dryRun": false,
     "noPush": false,
-    "forcePush": true
+    "forcePush": true,
+    "backupRemote": "backup"
   },
   "repos": [
     { "url": "https://github.com/user/repo1", "path": "/path/to/repo1" },
@@ -69,39 +70,22 @@ Example config: [remove-cursor-coauthor.example.json](remove-cursor-coauthor.exa
 }
 ```
 
-- **defaults** (optional): `dryRun`, `noPush`, `forcePush` (booleans). Omitted keys keep script defaults.
-- **repos** (optional): Array of `{ "url": "...", "path": "..." }`. If present, positional repo pairs and `--repos-file` are ignored when `--config` is used; to add more repos, put them in the config or use `--repos-file` without `--config`.
-
-Run with defaults from config (repos from config):
-
-```bash
-./remove-cursor-coauthor.sh --config remove-cursor-coauthor.json
-```
-
-Override config (e.g. local-only for this run):
-
-```bash
-./remove-cursor-coauthor.sh --config remove-cursor-coauthor.json --no-push
-```
+- `defaults`: optional `dryRun`, `noPush`, `forcePush` (booleans), `backupRemote` (string).
+- `repos`: optional array of `{ "url": "...", "path": "..." }`.
+- If `--config` is passed more than once, the **last one wins** for both defaults and repos.
 
 ## Examples
 
-Single repo, force-push (default):
+Single repo (default force push):
 
 ```bash
 ./remove-cursor-coauthor.sh https://github.com/user/repo /path/to/repo
 ```
 
-Single repo, local only (no push):
+Local-only rewrite:
 
 ```bash
 ./remove-cursor-coauthor.sh --no-push https://github.com/user/repo /path/to/repo
-```
-
-Push without force:
-
-```bash
-./remove-cursor-coauthor.sh --no-force-push https://github.com/user/repo /path/to/repo
 ```
 
 Dry-run:
@@ -110,53 +94,120 @@ Dry-run:
 ./remove-cursor-coauthor.sh --dry-run https://github.com/user/repo /path/to/repo
 ```
 
-Validate without rewriting (pre-flight check):
+Validate-only:
 
 ```bash
 ./remove-cursor-coauthor.sh --validate-only https://github.com/user/repo /path/to/repo
 ```
 
-Quiet mode (one line per repo):
+Batch from config:
 
 ```bash
-./remove-cursor-coauthor.sh --quiet https://github.com/user/repo /path/to/repo
+./remove-cursor-coauthor.sh --config remove-cursor-coauthor.json
 ```
 
-Multiple repos (positional pairs):
+## How It Works
 
-```bash
-./remove-cursor-coauthor.sh \
-  https://github.com/user/repo1 /path/to/repo1 \
-  https://github.com/user/repo2 /path/to/repo2
+```mermaid
+flowchart TD
+    A[Start command] --> B[Parse CLI options]
+    B --> C{Config file provided?}
+    C -->|Yes| D[Load defaults from config]
+    C -->|No| E[Build repository list]
+    D --> E
+    E --> F[Validate prerequisites: git, optional git-filter-repo, optional python3]
+    F --> G{Per-repo loop}
+
+    G --> H[Validate repo input: URL, path, branch, preflight remote checks]
+    H --> I{Validation failed?}
+    I -->|Yes| X[Mark repo failed]
+    I -->|No| J{--validate-only?}
+
+    J -->|Yes| K[Record repo success without rewrite]
+    J -->|No| L[Backup remote metadata]
+
+    L --> M{Backup remote set and push enabled?}
+    M -->|Yes| N[Push current branch to backup remote]
+    M -->|No| O[Create local backup branch]
+    N --> O
+
+    O --> P[Run git filter-repo message callback]
+    P --> Q{filter-repo failed?}
+    Q -->|Yes| X
+    Q -->|No| R[Restore remotes]
+
+    R --> S{--no-push?}
+    S -->|Yes| T[Delete local backup branch]
+    S -->|No| U[Resolve target push remote]
+
+    U --> V[Push branch and tags]
+    V --> W{Push failed?}
+    W -->|Yes| X
+    W -->|No| Y[Cleanup remote/local backup branches]
+    Y --> Z[Verify trailers removed and fetch --prune]
+    T --> K
+    Z --> K
+
+    X --> AA[Continue with next repo]
+    K --> AA
+    AA --> AB{More repos?}
+    AB -->|Yes| G
+    AB -->|No| AC[Print summary and final exit code]
 ```
 
-Batch from plain file (one `url path` per line):
+## Repository Processing Lifecycle
 
-```bash
-./remove-cursor-coauthor.sh --repos-file repos.txt
-```
+```mermaid
+stateDiagram-v2
+    [*] --> InputValidated
 
-Batch from config (defaults + repos list):
+    InputValidated --> Failed: Validation error
+    InputValidated --> PreflightChecked: Validation passed
 
-```bash
-./remove-cursor-coauthor.sh --config my-defaults.json
+    PreflightChecked --> Failed: Missing remotes in push mode
+    PreflightChecked --> BackupPrepared: Preflight passed
+
+    BackupPrepared --> HistoryRewritten: backup branch + filter-repo
+    HistoryRewritten --> Failed: filter-repo error
+
+    HistoryRewritten --> RemotesRestored: remotes restored
+    RemotesRestored --> PushResolved: target remote selection
+    PushResolved --> Failed: no usable remote (non-dry-run)
+
+    PushResolved --> Pushed: push phase enabled
+    PushResolved --> Verified: --no-push path
+
+    Pushed --> Verified: cleanup + verification
+    Verified --> Succeeded
+
+    Failed --> BatchSummary: continue to next repo and aggregate failures
+    Succeeded --> BatchSummary: aggregate success
+    BatchSummary --> [*]
 ```
 
 ## Important / Caveats
 
-- **History rewrite:** The script rewrites commit history. If you push (default), it force-pushes. Anyone else with a clone must re-clone or rebase.
-- `**--no-push`:** Only rewrites history locally (backup branch is created then removed). No remote is added and nothing is pushed.
-- **Local path:** Must be **absolute**. A warning is shown if the directory's basename does not match the repo name from the URL, but processing continues.
-- **Branch required:** The repo must be on a branch (not detached HEAD). Check out `main` or your target branch before running.
-- **Backup branch:** A local branch `backup/remove-cursor-<timestamp>-<pid>` is created before filtering. Only that branch is deleted after a successful run. Remote backup branches from previous runs matching `backup/remove-cursor-`* are also removed when pushing.
-- **Remotes:** `git-filter-repo` may remove existing remotes. The script re-adds only `origin` when pushing. If you had other remotes (e.g. `upstream`), re-add them manually.
-- **Exit code:** Returns 0 if all repos succeed; returns 1 if any repo fails. For batch runs, a summary is printed.
+- **History rewrite:** This rewrites commit history; default mode force-pushes.
+- **Backup:** The in-repo backup branch is not a full backup. Use an external clone or remote backup.
+- **Push precheck:** In push mode, at least one remote must exist or the script fails before rewrite.
+- **Branch required:** Detached HEAD is rejected.
+- **Remotes:** `git-filter-repo` removes remotes; script restores remote URLs only (not custom refspecs or `pushurl`).
+- **Push target remote order:** URL match, else `origin` if present, else first available remote.
+- **`--validate-only`:** No rewrite and no push; `git-filter-repo` is not required.
+- **Exit codes:** `0` if all repos succeeded, `1` if any failed.
 
-## No warranty
+## Manual Release Process
 
-Use at your own risk. This script modifies Git history and remotes; ensure you have backups or have tried `--dry-run` first.
+1. Run full checks (`bash -n`, `shellcheck`, `jq` validation, smoke tests).
+2. Bump `VERSION` in `remove-cursor-coauthor.sh`.
+3. Commit release-prep changes.
+4. Create annotated tag (for example `v1.2.1`).
+5. Publish GitHub release manually with concise notes and history-rewrite caveat.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## See also
 
-- [SECURITY_AND_QUALITY.md](SECURITY_AND_QUALITY.md) — security assumptions, temp cleanup, safe usage.
-
+- [SECURITY_AND_QUALITY.md](SECURITY_AND_QUALITY.md)
