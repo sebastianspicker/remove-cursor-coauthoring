@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Drop every permission by default; jobs opt in to what they need.
+permissions: {}
+
+# One run per branch/PR – cancel older runs when a new push arrives.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: ShellCheck & validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install ShellCheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: ShellCheck
+        run: shellcheck --severity=warning remove-cursor-coauthor.sh
+
+      - name: Bash syntax check
+        run: bash -n remove-cursor-coauthor.sh
+
+      - name: Validate JSON files
+        run: |
+          python3 -c "import json, sys; json.load(open(sys.argv[1]))" remove-cursor-coauthor.schema.json
+          python3 -c "import json, sys; json.load(open(sys.argv[1]))" remove-cursor-coauthor.example.json
+
+      - name: Script is executable
+        run: test -x remove-cursor-coauthor.sh
